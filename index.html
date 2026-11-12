@@ -59,7 +59,7 @@ th{background:#eef3f0;white-space:nowrap}
 <div class="err" id="lerr"></div></div></div>
 
 <div id="app">
-<header><div style="display:flex;align-items:center;gap:10px"><img id="hlogo" class="hl" alt=""><b>جمعية أبناء زرنيخ – جمعية أهلية</b></div><span><span id="who"></span> · <small style="opacity:.7">إصدار 6</small> · <button class="sm sec" id="out">خروج</button></span></header>
+<header><div style="display:flex;align-items:center;gap:10px"><img id="hlogo" class="hl" alt=""><b>جمعية أبناء زرنيخ – جمعية أهلية</b></div><span><span id="who"></span> · <small style="opacity:.7">إصدار 7</small> · <button class="sm sec" id="out">خروج</button></span></header>
 <nav id="nav"></nav><main id="main"></main>
 </div>
 <div class="modal" id="modal"><div class="mb" id="mb"></div></div>
@@ -107,7 +107,7 @@ onAuthStateChanged(auth,async u=>{
   $("#who").textContent=name+" – "+ROLES[role];
   $("#login").style.display="none";$("#app").style.display="block";
   S.tab="inq";S.vres=null;const cols=S.role==="viewer"?[]:["members","courses","board"].concat(isAdmin()?["users"]:[]);
-  cols.forEach(c=>S.unsubs.push(onSnapshot(collection(db,c),sn=>{S[c]=sn.docs.map(d=>({id:d.id,...d.data()}));render()},e=>{$("#main").innerHTML='<div class="empty">تعذر تحميل البيانات: '+esc(e.code)+'</div>'})));
+  cols.forEach(c=>S.unsubs.push(onSnapshot(collection(db,c),sn=>{S[c]=sn.docs.map(d=>({id:d.id,...d.data()}));if(c==="members")S[c].sort(byName);render()},e=>{$("#main").innerHTML='<div class="empty">تعذر تحميل البيانات: '+esc(e.code)+'</div>'})));
   render();
 });
 
@@ -116,13 +116,14 @@ const yr=new Date().getFullYear();
 const age=b=>{if(!b)return"";const d=new Date(b),n=new Date();let a=n.getFullYear()-d.getFullYear();if(n<new Date(n.getFullYear(),d.getMonth(),d.getDate()))a--;return a>=0?a:""};
 const arrears=m=>{if(m.status!=="عضو عامل"||!m.joinDate)return[];const s=+m.joinDate.slice(0,4),paid=new Set((m.payments||[]).map(p=>+p.year)),r=[];for(let y=s;y<=yr;y++)if(!paid.has(y))r.push(y);return r};
 const nm=v=>String(v||"").trim();
+const byName=(a,b)=>String(a.fullName||"").localeCompare(String(b.fullName||""),"ar",{sensitivity:"base"});
 const nk=s=>String(s||"").replace(/[\u064B-\u0652\u0640]/g,"").replace(/[أإآ]/g,"ا").replace(/ى/g,"ي").replace(/ة/g,"ه").replace(/\s+/g," ").trim().toLowerCase().replace(/\//g,"-");
 const idxSet=async m=>{await setDoc(doc(db,"names",nk(m.fullName)),{nids:arrayUnion(m.nid)},{merge:true});if(nk(m.family))await setDoc(doc(db,"names","f_"+nk(m.family)),{nids:arrayUnion(m.nid)},{merge:true})};
 const idxDel=async m=>{await setDoc(doc(db,"names",nk(m.fullName)),{nids:arrayRemove(m.nid)},{merge:true});if(nk(m.family))await setDoc(doc(db,"names","f_"+nk(m.family)),{nids:arrayRemove(m.nid)},{merge:true})};
 async function vSearch(){const q=nm($("#q").value);if(!q)return;const T=$("#tbl");T.innerHTML='<div class="empty">جارٍ البحث…</div>';
 try{let ids=[];if(/^\d{14}$/.test(q))ids=[q];else{for(const k of [nk(q),"f_"+nk(q)]){const d=await getDoc(doc(db,"names",k));if(d.exists())ids.push(...(d.data().nids||[]))}ids=[...new Set(ids)].slice(0,50)}
 const L=[];for(const i of ids){const d=await getDoc(doc(db,"members",i));if(d.exists())L.push({id:d.id,...d.data()})}
-S.vres=L;fillTable()}catch(e){T.innerHTML='<div class="empty">تعذر البحث: '+esc(e.code)+'</div>'}}
+S.vres=L.sort(byName);fillTable()}catch(e){T.innerHTML='<div class="empty">تعذر البحث: '+esc(e.code)+'</div>'}}
 const NAV=[["inq","الاستعلام"],["mem","الأفراد"],["crs","الدورات"],["brd","مجلس الإدارة"]];
 function render(){
   const nav=S.role==="viewer"?[NAV[0]]:NAV.concat(isAdmin()?[["usr","المستخدمون"]]:[]);
