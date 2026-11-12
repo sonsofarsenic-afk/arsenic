@@ -55,11 +55,16 @@ th{background:#eef3f0;white-space:nowrap}
 <body>
 <div id="setup" style="display:none;padding:30px;max-width:640px;margin:auto"><h2>الإعداد غير مكتمل</h2><p>الصق إعدادات Firebase في المتغير <code>firebaseConfig</code> داخل ملف index.html (راجع الخطوات).</p></div>
 <div id="login"><div class="card"><h1>جمعية أبناء زرنيخ</h1><p>جمعية أهلية – نظام إدارة الأعضاء</p>
+<input id="lu" dir="ltr" placeholder="اسم المستخدم أو البريد الإلكتروني" autocomplete="username" style="margin-bottom:10px">
+<input id="lp" type="password" dir="ltr" placeholder="كلمة السر" autocomplete="current-password" style="margin-bottom:10px">
+<button id="lb" style="width:100%;padding:12px;font-size:16px">دخول</button>
+<p style="margin:10px 0 0"><a href="#" id="lf" style="font-size:13px;color:#667">نسيت كلمة السر؟</a></p>
+<div style="color:#889;margin:12px 0">— أو —</div>
 <button class="gbtn" id="gl"><svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4.1 7.1-10.1 7.1-17.5z"/><path fill="#FBBC05" d="M10.5 28.7a14.5 14.5 0 010-9.4l-7.9-6.1a24 24 0 000 21.6l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.5-5.8c-2.1 1.4-4.9 2.3-8.4 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/></svg>الدخول بحساب Google</button>
 <div class="err" id="lerr"></div></div></div>
 
 <div id="app">
-<header><div style="display:flex;align-items:center;gap:10px"><img id="hlogo" class="hl" alt=""><b>جمعية أبناء زرنيخ – جمعية أهلية</b></div><span><span id="who"></span> · <small style="opacity:.7">إصدار 7</small> · <button class="sm sec" id="out">خروج</button></span></header>
+<header><div style="display:flex;align-items:center;gap:10px"><img id="hlogo" class="hl" alt=""><b>جمعية أبناء زرنيخ – جمعية أهلية</b></div><span><span id="who"></span> · <small style="opacity:.7">إصدار 8</small> · <button class="sm sec" id="cp" style="display:none">كلمة السر</button> <button class="sm sec" id="out">خروج</button></span></header>
 <nav id="nav"></nav><main id="main"></main>
 </div>
 <div class="modal" id="modal"><div class="mb" id="mb"></div></div>
@@ -80,7 +85,7 @@ const BG="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAwICQsJCAwLCgs
 {const l=document.getElementById("login");l.style.backgroundImage="url("+BG+")";l.style.backgroundSize="cover";l.style.backgroundPosition="center";
 document.getElementById("hlogo").src=LOGO;document.head.insertAdjacentHTML("beforeend",'<link rel="icon" href="'+LOGO+'">')}
 import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import {getAuth,GoogleAuthProvider,signInWithPopup,signOut,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {getAuth,GoogleAuthProvider,signInWithPopup,signOut,onAuthStateChanged,signInWithEmailAndPassword,createUserWithEmailAndPassword,updatePassword,sendPasswordResetEmail} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {getFirestore,collection,doc,getDoc,setDoc,addDoc,updateDoc,deleteDoc,onSnapshot,arrayUnion,arrayRemove,writeBatch} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const $=s=>document.querySelector(s);
@@ -93,16 +98,25 @@ const ROLES={admin:"مدير النظام",staff:"موظف",viewer:"مستخدم
 const canEdit=()=>S.role==="admin"||S.role==="staff",isAdmin=()=>S.role==="admin";
 let loginMsg="";
 
-$("#gl").onclick=()=>signInWithPopup(auth,new GoogleAuthProvider(),).catch(e=>{$("#lerr").textContent="تعذر تسجيل الدخول: "+e.code});
+$("#gl").onclick=()=>{lerr("");signInWithPopup(auth,new GoogleAuthProvider()).catch(e=>lerr("تعذر تسجيل الدخول: "+e.code))};
 $("#out").onclick=()=>signOut(auth);
+const toEmail=u=>{u=String(u||"").trim().toLowerCase();return u.includes("@")?u:u+"@arsenic.users"};
+const lerr=(t,good)=>{$("#lerr").style.color=good?"#198754":"";$("#lerr").textContent=t};
+function pwLogin(){const u=$("#lu").value.trim(),p=$("#lp").value;if(!u||!p)return lerr("اكتب اسم المستخدم وكلمة السر");lerr("");
+signInWithEmailAndPassword(auth,toEmail(u),p).catch(e=>lerr(["auth/invalid-credential","auth/wrong-password","auth/user-not-found","auth/invalid-email"].includes(e.code)?"اسم المستخدم أو كلمة السر غير صحيحة":"تعذر تسجيل الدخول: "+e.code))}
+$("#lb").onclick=pwLogin;$("#lp").onkeydown=e=>{if(e.key==="Enter")pwLogin()};
+$("#lf").onclick=async e=>{e.preventDefault();const v=$("#lu").value.trim();if(!v.includes("@"))return lerr("اكتب بريدك الإلكتروني الحقيقي أولاً. ولو دخولك باسم مستخدم، اطلب من المدير حساباً جديداً.");
+try{await sendPasswordResetEmail(auth,v.toLowerCase());lerr("تم إرسال رابط تغيير كلمة السر إلى بريدك.",true)}catch(x){lerr("تعذر الإرسال: "+x.code)}};
+$("#cp").onclick=async()=>{const p=prompt("اكتب كلمة السر الجديدة (6 أحرف على الأقل):");if(!p)return;if(p.length<6)return alert("كلمة السر أقصر من 6 أحرف");try{await updatePassword(auth.currentUser,p);alert("تم تغيير كلمة السر")}catch(x){alert(x.code==="auth/requires-recent-login"?"لأسباب أمنية: اخرج وادخل من جديد ثم أعد المحاولة":"تعذر التغيير: "+x.code)}};
 
 onAuthStateChanged(auth,async u=>{
   S.unsubs.forEach(f=>f());S.unsubs=[];
-  if(!u){$("#app").style.display="none";$("#login").style.display="flex";$("#lerr").textContent=loginMsg;loginMsg="";return}
-  const em=(u.email||"").toLowerCase();let role=null,name=u.displayName||em;
-  if(em===ROOT)role="admin";
-  else{try{const d=await getDoc(doc(db,"users",em));if(d.exists())role=d.data().role}catch(e){}}
-  if(!role||!ROLES[role]){loginMsg="هذا الحساب ("+em+") غير مسموح له بالدخول. تواصل مع مدير النظام.";await signOut(auth);return}
+  if(!u){$("#app").style.display="none";$("#login").style.display="flex";if(loginMsg)lerr(loginMsg);loginMsg="";return}
+  const em=(u.email||"").toLowerCase(),isPw=(u.providerData[0]?.providerId||"")==="password";let role=null,name=u.displayName||em;
+  if(!isPw&&em===ROOT)role="admin";
+  else{try{const d=await getDoc(doc(db,"users",em));if(d.exists()&&((d.data().method||"google")==="password")===isPw){role=d.data().role;name=d.data().name||name}}catch(e){}}
+  $("#cp").style.display=isPw?"":"none";
+  if(!role||!ROLES[role]){loginMsg="هذا الحساب ("+(isPw?"اسم المستخدم":em)+") غير مسموح له بالدخول. تواصل مع مدير النظام.";await signOut(auth);return}
   S.role=role;S.email=em;
   $("#who").textContent=name+" – "+ROLES[role];
   $("#login").style.display="none";$("#app").style.display="block";
@@ -205,9 +219,21 @@ openM(`<h2>${G.t}</h2><div class="grid">${G.f.map(([k,l,t])=>`<div ${t==="area"?
 $("#gs").onclick=async()=>{const d={};G.f.forEach(([k])=>d[k]=nm($("#g_"+k).value));if(!d.name)return $("#ferr").textContent="الاسم مطلوب";d.updatedBy=S.email;try{id?await updateDoc(doc(db,c,id),d):await addDoc(collection(db,c),d);closeM()}catch(e){$("#ferr").textContent="تعذر الحفظ: "+e.code}}}
 
 // ---------- المستخدمون (للمدير فقط) ----------
-function vUsr(){return `<div class="bar"><h2 style="margin:0">المستخدمون المسموح لهم (Gmail)</h2><button data-a="uadd">+ إضافة / تعديل مستخدم</button></div><div class="tw"><table><tr><th>البريد</th><th>الاسم</th><th>الصلاحية</th><th></th></tr><tr><td>${ROOT}</td><td>المدير الرئيسي</td><td>مدير النظام</td><td></td></tr>${S.users.map(u=>`<tr><td>${esc(u.id)}</td><td>${esc(u.name)}</td><td>${ROLES[u.role]||""}</td><td><button class="sm red" data-a="udel" data-id="${u.id}">حذف</button></td></tr>`).join("")}</table></div>`}
-function formUser(){openM(`<h2>إضافة / تعديل مستخدم</h2><div class="grid"><div class="full"><label>بريد Gmail</label><input id="u_e" type="email" placeholder="name@gmail.com"></div><div><label>الاسم</label><input id="u_n"></div><div><label>الصلاحية</label><select id="u_r">${Object.entries(ROLES).map(([k,v])=>`<option value="${k}">${v}</option>`).join("")}</select></div></div><p><button id="us">حفظ</button> <button class="sec" data-a="close">إلغاء</button></p><div class="err" id="ferr"></div>`);
-$("#us").onclick=async()=>{const e=nm($("#u_e").value).toLowerCase();if(!/^[^@\s]+@gmail\.com$/.test(e))return $("#ferr").textContent="أدخل بريد Gmail صحيحاً";try{await setDoc(doc(db,"users",e),{role:$("#u_r").value,name:nm($("#u_n").value)});closeM()}catch(x){$("#ferr").textContent="تعذر الحفظ: "+x.code}}}
+let _aux;const aux=()=>_aux||(_aux=initializeApp(firebaseConfig,"aux"));
+document.addEventListener("change",async e=>{const id=e.target.dataset?.uid;if(!id||!isAdmin())return;try{await updateDoc(doc(db,"users",id),{role:e.target.value})}catch(x){alert("تعذر تغيير الصلاحية: "+x.code)}});
+function vUsr(){return `<div class="bar"><h2 style="margin:0">المستخدمون</h2><button data-a="uadd">+ إضافة مستخدم</button></div><div class="tw"><table><tr><th>المستخدم / البريد</th><th>الاسم</th><th>طريقة الدخول</th><th>الصلاحية</th><th></th></tr><tr><td>${ROOT}</td><td>المدير الرئيسي</td><td>Google</td><td>مدير النظام</td><td></td></tr>${S.users.map(u=>`<tr><td>${esc(u.method==="password"&&u.username?u.username:u.id)}</td><td>${esc(u.name)}</td><td>${u.method==="password"?"اسم مستخدم وكلمة سر":"Google"}</td><td><select data-uid="${esc(u.id)}" style="width:auto">${Object.entries(ROLES).map(([k,v])=>`<option value="${k}" ${u.role===k?"selected":""}>${v}</option>`).join("")}</select></td><td><button class="sm red" data-a="udel" data-id="${esc(u.id)}">حذف</button></td></tr>`).join("")}</table></div>`}
+function formUser(){openM(`<h2>إضافة مستخدم</h2><div class="grid"><div class="full"><label>طريقة الدخول</label><select id="u_m"><option value="password">اسم مستخدم وكلمة سر</option><option value="google">حساب Google (Gmail)</option></select></div>
+<div class="full"><label id="u_el">اسم المستخدم (حروف إنجليزية أو أرقام بدون مسافات)، أو بريد إلكتروني</label><input id="u_e" dir="ltr"></div>
+<div class="full" id="u_pw"><label>كلمة السر (6 أحرف على الأقل)</label><input id="u_p" dir="ltr"></div>
+<div><label>الاسم</label><input id="u_n"></div><div><label>الصلاحية</label><select id="u_r">${Object.entries(ROLES).map(([k,v])=>`<option value="${k}">${v}</option>`).join("")}</select></div></div>
+<p><button id="us">حفظ</button> <button class="sec" data-a="close">إلغاء</button></p><div class="err" id="ferr"></div>`);
+$("#u_m").onchange=()=>{const g=$("#u_m").value==="google";$("#u_pw").style.display=g?"none":"";$("#u_el").textContent=g?"بريد Gmail":"اسم المستخدم (حروف إنجليزية أو أرقام بدون مسافات)، أو بريد إلكتروني"};
+$("#us").onclick=async()=>{const er=t=>{$("#ferr").textContent=t},meth=$("#u_m").value,raw=nm($("#u_e").value).toLowerCase(),role=$("#u_r").value,name=nm($("#u_n").value);
+try{if(meth==="google"){if(!/^[^@\s]+@gmail\.com$/.test(raw))return er("أدخل بريد Gmail صحيحاً");if(S.users.some(u=>u.id===raw))return er("المستخدم موجود، غيّر صلاحيته من الجدول");await setDoc(doc(db,"users",raw),{role,name,method:"google"})}
+else{const em=toEmail(raw);if(!raw.includes("@")&&!/^[a-z0-9._-]{3,}$/.test(raw))return er("اسم المستخدم: 3 أحرف على الأقل، إنجليزي أو أرقام بدون مسافات");if(raw.includes("@")&&!/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/.test(raw))return er("البريد غير صحيح");
+const pw=$("#u_p").value;if(pw.length<6)return er("كلمة السر أقل من 6 أحرف");if(S.users.some(u=>u.id===em)||em===ROOT)return er("المستخدم موجود بالفعل");
+const a2=getAuth(aux());try{await createUserWithEmailAndPassword(a2,em,pw)}catch(x){if(x.code==="auth/email-already-in-use")return er("هذا الاسم مستخدم من قبل، اختر اسماً آخر.");throw x}await signOut(a2);
+await setDoc(doc(db,"users",em),{role,name,method:"password",username:raw})}closeM()}catch(x){er("تعذر الحفظ: "+(x.code||x.message))}}}
 </script>
 </body>
 </html>
