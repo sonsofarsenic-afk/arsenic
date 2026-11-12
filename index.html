@@ -59,7 +59,7 @@ th{background:#eef3f0;white-space:nowrap}
 <div class="err" id="lerr"></div></div></div>
 
 <div id="app">
-<header><div style="display:flex;align-items:center;gap:10px"><img id="hlogo" class="hl" alt=""><b>جمعية أبناء زرنيخ – جمعية أهلية</b></div><span><span id="who"></span> · <small style="opacity:.7">إصدار 5</small> · <button class="sm sec" id="out">خروج</button></span></header>
+<header><div style="display:flex;align-items:center;gap:10px"><img id="hlogo" class="hl" alt=""><b>جمعية أبناء زرنيخ – جمعية أهلية</b></div><span><span id="who"></span> · <small style="opacity:.7">إصدار 6</small> · <button class="sm sec" id="out">خروج</button></span></header>
 <nav id="nav"></nav><main id="main"></main>
 </div>
 <div class="modal" id="modal"><div class="mb" id="mb"></div></div>
@@ -81,7 +81,7 @@ const BG="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAwICQsJCAwLCgs
 document.getElementById("hlogo").src=LOGO;document.head.insertAdjacentHTML("beforeend",'<link rel="icon" href="'+LOGO+'">')}
 import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {getAuth,GoogleAuthProvider,signInWithPopup,signOut,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import {getFirestore,collection,doc,getDoc,setDoc,addDoc,updateDoc,deleteDoc,onSnapshot,arrayUnion,arrayRemove} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import {getFirestore,collection,doc,getDoc,setDoc,addDoc,updateDoc,deleteDoc,onSnapshot,arrayUnion,arrayRemove,writeBatch} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const $=s=>document.querySelector(s);
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -177,13 +177,13 @@ ${f("birth","تاريخ الميلاد","date")}${f("job","المهنة")}${f("j
 <div class="full" style="border:1px solid var(--b);border-radius:10px;padding:12px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b>الأولاد</b><button class="sm" data-a="addkid" type="button">+ إضافة طفل</button></div><div id="kids">${(m.children||[]).map(kidRow).join("")}</div></div>
 <div class="full"><label>إيصالات السداد (سنة السداد – رقم الإيصال – تاريخه). السنوات غير المسجلة منذ الاشتراك تُحتسب متأخرات تلقائياً.</label><div id="pays">${(m.payments||[]).map(payRow).join("")}</div><button class="sm sec" data-a="addpay" type="button">+ إضافة سنة مسددة</button></div></div>
 <p><button id="save">حفظ</button> <button class="sec" data-a="close">إلغاء</button></p><div class="err" id="ferr"></div>`);
-if(id)$("#f_nid").disabled=true;$("#save").onclick=async()=>{const g=k=>nm($("#f_"+k).value),d={fullName:g("fullName"),nid:g("nid"),phone:g("phone"),address:g("address"),birth:g("birth"),job:g("job"),joinDate:g("joinDate"),family:g("family"),status:$("#f_status").value,notes:g("notes"),
+if(id&&!isAdmin())$("#f_nid").disabled=true;$("#save").onclick=async()=>{const g=k=>nm($("#f_"+k).value),d={fullName:g("fullName"),nid:g("nid"),phone:g("phone"),address:g("address"),birth:g("birth"),job:g("job"),joinDate:g("joinDate"),family:g("family"),status:$("#f_status").value,notes:g("notes"),
 payments:[...document.querySelectorAll(".pay")].map(r=>({year:+r.querySelector(".py").value,receipt:nm(r.querySelector(".pr").value),date:r.querySelector(".pd").value})).filter(p=>p.year),children:[...document.querySelectorAll(".kid")].map(r=>({name:nm(r.querySelector(".kn").value),birth:r.querySelector(".kb").value})).filter(k=>k.name)};
 const er=t=>$("#ferr").textContent=t;if(!d.fullName)return er("الاسم مطلوب");if(!/^\d{14}$/.test(d.nid))return er("الرقم القومي يجب أن يكون 14 رقماً");
 if(S.members.some(x=>x.nid===d.nid&&x.id!==id))return er("الرقم القومي مسجل لعضو آخر");
 const yrs=d.payments.map(p=>p.year);if(new Set(yrs).size!==yrs.length)return er("سنة سداد مكررة");
 d.photo=m.photo||"";const fl=$("#f_photo").files[0];if(fl){try{d.photo=await shrink(fl)}catch(e){return er("تعذر قراءة الصورة")}}
-d.updatedBy=S.email;try{if(id){d.nid=m.nid;await updateDoc(doc(db,"members",id),d);if(nk(m.fullName)!==nk(d.fullName)||nk(m.family)!==nk(d.family))await idxDel(m)}else{d.createdBy=S.email;await setDoc(doc(db,"members",d.nid),d)}await idxSet(d);closeM()}catch(e){er("تعذر الحفظ: "+e.code)}}}
+d.updatedBy=S.email;try{if(id){if(isAdmin()&&d.nid!==m.nid){d.createdBy=m.createdBy||S.email;const b=writeBatch(db);b.set(doc(db,"members",d.nid),d);b.delete(doc(db,"members",id));await b.commit();await idxDel(m)}else{d.nid=m.nid;await updateDoc(doc(db,"members",id),d);if(nk(m.fullName)!==nk(d.fullName)||nk(m.family)!==nk(d.family))await idxDel(m)}}else{d.createdBy=S.email;await setDoc(doc(db,"members",d.nid),d)}await idxSet(d);closeM()}catch(e){er("تعذر الحفظ: "+e.code)}}}
 function shrink(file){return new Promise((ok,no)=>{const i=new Image();i.onload=()=>{const s=Math.min(1,180/Math.max(i.width,i.height)),c=document.createElement("canvas");c.width=i.width*s;c.height=i.height*s;c.getContext("2d").drawImage(i,0,0,c.width,c.height);ok(c.toDataURL("image/jpeg",.7))};i.onerror=no;i.src=URL.createObjectURL(file)})}
 
 // ---------- المتأخرات / طباعة / Excel ----------
